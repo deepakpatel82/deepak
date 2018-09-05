@@ -1,0 +1,82 @@
+yum install -y java-1.8.0-openjdk tar wget
+curl -Lf https://dist.apache.org/repos/dist/release/nifi/KEYS -o /tmp/nifi-keys.txt
+curl -Lf "https://s3.amazonaws.com/cnbc-devops/monitoring/newrelic/newrelic.jar" -o /tmp/newrelic.jar
+curl -Lf "https://s3.amazonaws.com/cnbc-devops/applications/stage/capi/splunklogging-1.2.jar" -o /tmp/splunklogging-1.2.jar
+curl -vLf "https://s3.amazonaws.com/cnbc-devops/applications/stage/capi/splunk-library-javalogging-1.5.0.jar" -o /tmp/splunk-library-javalogging-1.5.0.jar
+curl -vLf "https://s3.amazonaws.com/cnbc-devops/applications/stage/capi/splunk-1.5.0.0.jar" -o /tmp/splunk-1.5.0.0.jar 
+curl -vLf "https://s3.amazonaws.com/cnbc-devops/applications/stage/capi/mysql-connector-java-5.1.43.jar" -o /tmp/mysql-connector-java-5.1.43.jar    
+gpg --import /tmp/nifi-keys.txt
+curl -vLf "https://archive.apache.org/dist/nifi/1.4.0/nifi-1.4.0-bin.tar.gz" -o /tmp/nifi-bin.tar.gz
+curl -vLf "https://archive.apache.org/dist/nifi/1.4.0/nifi-1.4.0-bin.tar.gz.asc" -o /tmp/nifi-bin.tar.gz.asc
+curl -vLf "https://archive.apache.org/dist/nifi/1.4.0/nifi-1.4.0-bin.tar.gz.md5" -o /tmp/nifi-bin.tar.gz.md5
+curl -vLf "https://archive.apache.org/dist/nifi/1.4.0/nifi-1.4.0-bin.tar.gz.sha1" -o /tmp/nifi-bin.tar.gz.sha1
+gpg --verify /tmp/nifi-bin.tar.gz.asc /tmp/nifi-bin.tar.gz 
+echo "$(cat /tmp/nifi-bin.tar.gz.md5) /tmp/nifi-bin.tar.gz" | md5sum -c - 
+echo "$(cat /tmp/nifi-bin.tar.gz.sha1) /tmp/nifi-bin.tar.gz" | sha1sum -c - 
+mkdir -p /opt/nifi 
+tar -z -x -f /tmp/nifi-bin.tar.gz -C /opt/nifi --strip-components=1 
+rm /tmp/nifi-bin.tar.gz /tmp/nifi-bin.tar.gz.asc /tmp/nifi-bin.tar.gz.md5 /tmp/nifi-bin.tar.gz.sha1 
+rm /tmp/nifi-keys.txt 
+useradd nifi
+groupadd nifi
+usermod -a -G nifi nifi
+chown nifi:nifi -R /opt/nifi/
+cp /tmp/newrelic.jar /opt/nifi/lib
+cp /tmp/splunklogging-1.2.jar /opt/nifi/lib/
+cp /tmp/splunk-library-javalogging-1.5.0.jar /opt/nifi/lib/
+cp /tmp/mysql-connector-java-5.1.43.jar /opt/nifi/lib/
+cd /opt/
+yum install git -y
+git clone -b develop https://github.com/cnbc/DigitalDistribution.NifiDockerSwarm
+mkdir -p /opt/nifi/conf/templates/
+cp /opt/DigitalDistribution.NifiDockerSwarm/cnbc-nifi/template/*   /opt/nifi/conf/templates/
+cp /opt/DigitalDistribution.NifiDockerSwarm/cnbc-nifi/custom-processor/cnbc-nifi-nar-1.1.2.nar /opt/nifi/lib/
+cp /opt/DigitalDistribution.NifiDockerSwarm/cnbc-nifi/conf/* /opt/nifi/conf/
+mkdir -p /opt/nifi/javalib
+curl -vLf "http://mirrors.sonic.net/apache//commons/codec/binaries/commons-codec-1.11-bin.tar.gz" -o /tmp/commons-codec-1.11-bin.tar.gz
+cd /tmp
+tar -xvf  commons-codec-1.11-bin.tar.gz
+cd  commons-codec-1.11
+mv commons-codec-1.11.jar /opt/nifi/javalib/
+chown nifi:nifi -R /opt/nifi
+copy nifi.properties form existing server
+vi /opt/nifi/conf/nifi.properties (change IP address accordingly)
+vi  /opt/nifi/conf/bootstrap.conf ( Change env= qa03 accordingly)
+start Nifi (/opt/nifi/bin/nifi.sh  start )
+
+splunk install
+cd /etc/yum.repos.d/ \
+    && wget "https://s3.amazonaws.com/cnbc-devops/applications/stage/cnbc-epel.repo"
+
+ yum install -y splunkforwarder
+ chown splunk.splunk -R /opt/splunkforwarder
+ /opt/splunkforwarder/bin/splunk enable boot-start --answer-yes --no-prompt --accept-license
+ cp /opt/DigitalDistribution.NifiDockerSwarm/cnbc-nifi/conf/splunk-inputs.conf /opt/splunkforwarder/etc/system/local/inputs.conf
+ cp /opt/DigitalDistribution.NifiDockerSwarm/cnbc-nifi/conf/splunk-outputs.conf /opt/splunkforwarder/etc/system/local/outputs.conf
+ vi /opt/splunkforwarder/etc/system/local/inputs.conf
+ vi /opt/splunkforwarder/etc/system/local/outputs.conf
+ 
+ 
+ yum install https://archive.cloudera.com/cdh5/one-click-install/redhat/7/x86_64/cloudera-cdh-5-0.x86_64.rpm
+yum install zookeeper-server
+ Zookeeper Configuration
+vi /etc/zookeeper/conf/zoo.cfg
+
+Change the below section accordingly 
+dataLogDir=/var/lib/zookeeper
+
+server.1=172.30.5.231:2888:3888
+
+server.2=172.30.4.137:2888:3888
+
+server.3=172.30.5.125:2888:3888
+
+vi /var/lib/zookeeper/myid (1,2,3)
+service zookeeper-server init --myid=1 (for server 1 )
+
+service zookeeper-server stop
+
+service zookeeper-server start
+
+
+
